@@ -14,7 +14,7 @@
 </script>
 
 <template>
-  <div :class="['modal', { 'modal-open': modalIsOpen }]" @click="emit('modal-close')">
+  <div :class="['modal', { 'modal-open': modalIsOpen }]" @click="emit('modal-close')" @wheel.stop>
     <div class="modal__wrapper" @click.stop>
       <button class="button-close" @click="emit('modal-close')">
         x

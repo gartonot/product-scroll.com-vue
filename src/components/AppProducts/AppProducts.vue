@@ -1,45 +1,83 @@
 <script lang="ts" setup>
-  import { onMounted, ref } from 'vue'
+  import { onMounted, ref, watch } from 'vue'
   import type { IProduct } from '@/services/interfaces'
   import productsRepository from '@/services/repositories/products-repository'
   import ProductCard from '@/components/AppProducts/ProductCard.vue'
-  import ProductCardFull from '@/components/AppProducts/ProductCardFull.vue'
   import AppModal from '@/components/ui/AppModal.vue'
   import AppLoader from '@/components/ui/AppLoader.vue'
+  import { useScroll } from '@vueuse/core'
+  import debounce from '@/services/utils/debounce'
 
+  const defaultProduct = {
+    id: 0,
+    title: '',
+    price: 0,
+    description: '',
+    category: '',
+    image: '',
+    rating: {
+      rate: 0,
+      count: 0
+    }
+  }
+
+  const productsRef = ref<HTMLElement | null>(null)
+  const { y, arrivedState } = useScroll(productsRef)
   const products = ref<IProduct[]>([])
-  const currentProduct = ref<IProduct>({})
+  const currentProduct = ref<IProduct>(Object.assign({}, defaultProduct))
   const cardModalIsOpen = ref(false)
-  let isLoading = ref(false)
+  let productsIsLoading = ref(false)
+  let productsIsLoadingMore = ref(false)
 
-  onMounted(async () => {
-    isLoading.value = true
+  const loadProducts = async () => {
     try {
-      products.value = await productsRepository.fetchProducts() 
+      const products = await productsRepository.fetchProducts()
+      return products
     } catch (error) {
       console.warn(error)
     }
-    isLoading.value = false
-  })
-
+  }
   const addToCart = (productId: number) => {
     console.log('Added to cart product id:', productId)
   }
   const openCard = (productId: number) => {
-    modalOpen()
-    currentProduct.value = products.value.find(({ id }) => id === productId)
+    const product = products.value.find(({ id }) => id === productId)
+    if(product) {
+      currentProduct.value = Object.assign({}, product)
+      modalOpen()
+    }
   }
   const modalOpen = () => cardModalIsOpen.value = true
   const modalClose = () => cardModalIsOpen.value = false
+
+  onMounted(async () => {
+    productsIsLoading.value = true
+    const productsFetch = await loadProducts()
+    if(productsFetch) {
+      products.value = productsFetch
+    }
+    productsIsLoading.value = false
+  })
+
+  watch(() => y.value, debounce(async () => {
+    if(arrivedState.bottom) {
+      productsIsLoadingMore.value = true
+      const productsFetch = await loadProducts()
+      if(productsFetch) {
+        products.value.push(...productsFetch)
+      }
+      productsIsLoadingMore.value = true
+    }
+  }, 60))
 </script>
 
 <template>
   <div class="products">
-    <div class="products__loading" v-if="isLoading">
-      <app-loader />
+    <div class="products__loading" >
+      <app-loader v-if="productsIsLoading" />
     </div>
-    <div v-else class="products__list">
-      <product-card 
+    <div ref="productsRef" class="products__list">
+      <product-card
         v-for="product in products"
         :key="product.id"
         :product="product"
@@ -47,10 +85,16 @@
         @add-to-cart="addToCart($event)"
         @open-card="openCard($event)"
       />
-      <app-modal :modal-is-open="cardModalIsOpen" @modal-close="modalClose()">
-        <product-card-full :product="currentProduct" />
-      </app-modal>
+      <div class="products__loading">
+        <app-loader v-if="productsIsLoadingMore" />
+      </div>
     </div>
+    <app-modal :modal-is-open="cardModalIsOpen" @modal-close="modalClose()">
+        <product-card
+          :product="currentProduct"
+          card-is-full
+        />
+      </app-modal>
   </div>
 </template>
 
@@ -59,11 +103,15 @@
     &__loading {
       display: flex;
       justify-content: center;
+      width: 100%;
     }
     &__list {
       display: flex;
       flex-wrap: wrap;
       gap: 20px;
+      height: 600px;
+      overflow-y: auto;
+      padding-bottom: 80px;
 
       &-card {
         --count-card: 2;

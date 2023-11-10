@@ -2,13 +2,17 @@
   import { toRefs, computed } from 'vue'
   import type { IProduct } from '@/services/interfaces'
   import CartIcon from '@/components/icons/CartIcon.vue'
+  import StarIcon from '@/components/icons/StarIcon.vue';
 
   interface IProps {
-    product: IProduct
+    product: IProduct,
+    cardIsFull?: boolean
   }
 
-  const props = defineProps<IProps>()
-  const { product } = toRefs(props)
+  const props = withDefaults(defineProps<IProps>(), {
+    cardIsFull: false
+  })
+  const { product, cardIsFull } = toRefs(props)
   
   const emit = defineEmits<{
     'open-card': [number],
@@ -19,7 +23,10 @@
 </script>
 
 <template>
-  <article class="card" @click="emit('open-card', product.id)">
+  <article 
+    :class="['card', { 'card-full': cardIsFull }]" 
+    @click="emit('open-card', product.id)"
+  >
     <div class="card__head">
       <img 
         :src="product.image" 
@@ -30,19 +37,31 @@
         alt="Product image"
       />
     </div>
-    <div class="card__body">
-      <p class="card__body-title global-multiline-clip">
-        {{ product.title }}
-      </p>
-      <p class="card__body-text global-multiline-clip">
-        {{ product.description }}
-      </p>
-    </div>
-    <div class="card__actions">
-      <span class="card__actions-price">{{ price }}</span>
-      <button class="card__actions-cart" @click.stop="emit('add-to-cart', product.id)">
-        <cart-icon />
-      </button>
+    <div class="card-aside">
+      <div class="card__body">
+        <p :class="['card__body-title', { 'global-multiline-clip': !cardIsFull }]">
+          {{ product.title }}
+        </p>
+        <p :class="['card__body-text', { 'global-multiline-clip': !cardIsFull }]">
+          {{ product.description }}
+        </p>
+      </div>
+      <div class="card__rating">
+        <div class="rate">
+          <star-icon /> 
+          {{ product.rating?.rate ?? 0 }}
+        </div>
+        <div class="count">
+          Оценок:
+          {{ product.rating?.count ?? 0 }}
+        </div>
+      </div>
+      <div class="card__actions">
+        <span class="card__actions-price">{{ price }}</span>
+        <button class="card__actions-cart" @click.stop="emit('add-to-cart', product.id)">
+          <cart-icon />
+        </button>
+      </div>
     </div>
   </article>
 </template>
@@ -120,6 +139,18 @@
         }
       }
     }
+    &__rating {
+      margin-top: 20px;
+      display: none;
+      gap: 20px;
+      align-items: center;
+
+      .rate {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+    }
     &__actions {
       display: flex;
       justify-content: space-between;
@@ -159,6 +190,32 @@
         @media screen and (min-width: $breakpoint-sm) {
           width: 100px;
         }
+      }
+    }
+
+    &-full {
+      background-color: transparent;
+      display: flex;
+      flex-direction: column;
+      height: 550px;
+      overflow-y: auto;
+
+      &:hover {
+        background-color: transparent;
+      }
+
+      @media screen and (min-width: $breakpoint-md) {
+        flex-direction: row;
+      }
+      .card-aside {
+        width: 100%;
+
+        @media screen and (min-width: $breakpoint-md) {
+          width: 50%;
+        }
+      }
+      .card__rating {
+        display: flex;
       }
     }
   }
