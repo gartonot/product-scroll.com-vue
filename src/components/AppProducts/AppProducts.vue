@@ -24,10 +24,9 @@
   const productsRef = ref<HTMLElement | null>(null)
   const { y, arrivedState } = useScroll(productsRef)
   const products = ref<IProduct[]>([])
-  const currentProduct = ref<IProduct>(Object.assign({}, defaultProduct))
+  const currentProduct = ref<IProduct>(structuredClone(defaultProduct))
   const cardModalIsOpen = ref(false)
   let productsIsLoading = ref(false)
-  let productsIsLoadingMore = ref(false)
 
   const loadProducts = async () => {
     try {
@@ -40,42 +39,35 @@
   const addToCart = (productId: number) => {
     console.log('Added to cart product id:', productId)
   }
-  const openCard = (productId: number) => {
-    const product = products.value.find(({ id }) => id === productId)
-    if(product) {
-      currentProduct.value = Object.assign({}, product)
-      modalOpen()
-    }
+  const openCard = (product: IProduct) => {
+    currentProduct.value = product
+    modalOpen()
   }
   const modalOpen = () => cardModalIsOpen.value = true
   const modalClose = () => cardModalIsOpen.value = false
 
-  onMounted(async () => {
+  const prodcutsFetching = async () => {
     productsIsLoading.value = true
     const productsFetch = await loadProducts()
     if(productsFetch) {
-      products.value = productsFetch
+      products.value.push(...productsFetch)
     }
     productsIsLoading.value = false
+  }
+
+  onMounted(async () => {
+    await prodcutsFetching()
   })
 
   watch(() => y.value, debounce(async () => {
     if(arrivedState.bottom) {
-      productsIsLoadingMore.value = true
-      const productsFetch = await loadProducts()
-      if(productsFetch) {
-        products.value.push(...productsFetch)
-      }
-      productsIsLoadingMore.value = true
+      await prodcutsFetching()
     }
   }, 60))
 </script>
 
 <template>
   <div class="products">
-    <div class="products__loading" >
-      <app-loader v-if="productsIsLoading" />
-    </div>
     <div ref="productsRef" class="products__list">
       <product-card
         v-for="product in products"
@@ -83,10 +75,10 @@
         :product="product"
         class="products__list-card"
         @add-to-cart="addToCart($event)"
-        @open-card="openCard($event)"
+        @click="openCard($event)"
       />
       <div class="products__loading">
-        <app-loader v-if="productsIsLoadingMore" />
+        <app-loader v-if="productsIsLoading" />
       </div>
     </div>
     <app-modal :modal-is-open="cardModalIsOpen" @modal-close="modalClose()">

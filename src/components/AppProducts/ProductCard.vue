@@ -15,7 +15,7 @@
   const { product, cardIsFull } = toRefs(props)
   
   const emit = defineEmits<{
-    'open-card': [number],
+    'click': [IProduct],
     'add-to-cart': [number]
   }>()
 
@@ -25,7 +25,7 @@
 <template>
   <article 
     :class="['card', { 'card-full': cardIsFull }]" 
-    @click="emit('open-card', product.id)"
+    @click="emit('click', product)"
   >
     <div class="card__head">
       <img 
